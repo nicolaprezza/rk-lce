@@ -27,42 +27,27 @@ string input_pos = string();
 
 int main(int argc, char** argv){
 
-	vector<bool> BB {0,1,1,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,0};
-	bitv bv(BB);
-
-	for(int i=0;i<bv.size();++i) cout << bv[i];cout << endl;
-	for(int i=0;i<bv.size();++i) cout << bv.rank(i) << " ";cout << endl;
-
-	for(int i=0;i<bv.size();++i) cout << bv.predecessor_0(i) << " ";cout << endl;
-
-
-
-
-
-
-
-
-
-	exit(0);
-
-
-
-
 	srand(time(NULL));
-	uint64_t n = 100000*127;
+	uint64_t n = 10000*127;
 
 	vector<bool> B(n);
 
 	//probability of a 1
-	double p = 0.95;
+	double p = 0.99;
 
 	for(int i=0;i<n;++i){
 
-		B[i] = double(rand())/RAND_MAX < p;
+		if(i<10)
+			B[i] = 0;
+		else
+			B[i] = double(rand())/RAND_MAX < p;
 
 	}
 
 	auto lce = rk_lce_bin(B);
+
+	cout << "Size of the input: " << n/8 << " bytes" << endl;
+	cout << "Size of the structure: " << lce.bit_size()/8 << " bytes" << endl;
 
 	for(int i=0;i<B.size();++i){
 

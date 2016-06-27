@@ -34,6 +34,7 @@
 #define INTERNAL_RK_LCE_BIN_HPP_
 
 #include <includes.hpp>
+#include <bitv.hpp>
 
 namespace rk_lce{
 
@@ -51,78 +52,95 @@ public:
 	 * Build RK-LCE structure over the bitvector. Note that the size of
 	 * the bitvector must be a multiple of w!
 	 */
-	rk_lce_bin(vector<bool> & B){
+	rk_lce_bin(vector<bool> & input_bitvector){
 
-		n = B.size();
+		n = input_bitvector.size();
 
 		assert(n%w==0);
 
 		//number of 127-bits blocks
 		auto n_bl = n/w;
 
-	    vector<uint128> blocks_128_filtered;
+		assert(n_bl>0);
+
+		//array P_vec: prefix sums of blocks different than q
+		vector<uint128> P_vec;
 
 		{
 
-			auto blocks_128 = vector<uint128>(n_bl,0);
+	    	//pack bits in blocks of w bits: array B
+
+			auto B_vec = vector<uint128>(n_bl,0);
 
 			uint64_t i = 0;
-			for(auto b:B){
+			for(auto b:input_bitvector){
 
-				blocks_128[i/w] |= (uint128(b) << (w-(i%w+1)) );
-
+				B_vec[i/w] |= (uint128(b) << (w-(i%w+1)) );
 				i++;
 
 			}
 
-		    // NOW COMPUTE SUFFIX-SUMS
-
-		    uint128 X = 0;
-
-		    for(uint64_t i=1;i<blocks_128.size();++i){
-
-		    	auto j = blocks_128.size()-(i+1);
-
-		    	auto X = blocks_128[j];
-
-		    	blocks_128[j] = (blocks_128[j+1] + mul_pow2<w>(blocks_128[j],w*i))%q;
-
-		    	assert( div_pow2<w>(sub<w>(blocks_128[j], blocks_128[j+1]),w*i) == X%q );
-
-		    }
+			//first block must be different than q
+			assert(B_vec[0]!=q);
 
 		    //detect full blocks
 
-		    uint64_t fb = 0;
-		    for(auto bl : blocks_128) fb += bl==q;
+		    uint64_t number_full_blocks = 0;
+		    for(auto bl : B_vec) number_full_blocks += bl==q;
 
-		    if(blocks_128.size() - fb > 0) blocks_128_filtered = vector<uint128>(blocks_128.size() - fb);
-		    if(fb>0) full_blocks = vector<uint64_t>(fb);
+		    //Build bitvector Q1
 
-			i = 0;
-			uint64_t j_fb = 0; //index on full blocks
-			uint64_t j_nfb = 0; //index on not full blocks
+		    {
 
-			for(auto bl : blocks_128){
+				vector<bool> Q_vec;
 
-				if(bl == q)
-					full_blocks[j_fb++] = i;
-				else
-					blocks_128_filtered[j_nfb++] = bl;
+				i = 0;
+				for(auto bl : B_vec) Q_vec.push_back(bl==q);
 
-				i++;
+				Q1 = bitv(Q_vec);
 
-			}
+				assert(Q1.rank(Q1.size()) == number_full_blocks);
 
-		}
+		    }
 
-		cout << full_blocks.size() << " full blocks"<<endl;
-		cout << blocks_128_filtered.size() << " non-full blocks"<<endl;
+			cout << Q1.rank(Q1.size()) << " full blocks"<<endl;
+			cout << Q1.rank(Q1.size(),0) << " non-full blocks"<<endl;
 
-	    blocks = packed_vector_127(blocks_128_filtered);
+		    // NOW COMPUTE PREFIX SUMS (array P' in the paper. here we overwrite B_vec with P')
 
+		    for(uint64_t i=1;i<B_vec.size();++i){
+
+		    	B_vec[i] = (B_vec[i] + mul_pow2<w>(B_vec[i-1],w))%q;
+
+		    }
+
+		    //P_vec is never empty because we require B[0] != q
+		    P_vec = vector<uint128>(Q1.rank(Q1.size(),0));
+
+		    uint64_t i_P_vec = 0;
+		    for(uint64_t j = 0; j< Q1.size();++j){
+
+		    	if(not Q1[j]){
+
+			    	assert(i_P_vec < P_vec.size());
+		    		P_vec[i_P_vec++] = B_vec[j];
+
+		    	}
+
+		    }
+
+		}//destroy B_vec
+
+		P = packed_vector_127(P_vec);
 
 	}
+
+	uint64_t bit_size(){
+
+		return P.bit_size() + Q1.bit_size() + sizeof(this)*8;
+
+	}
+
 
 	/*
 	 * access i-th bit
@@ -130,14 +148,14 @@ public:
 	 * complexity: O(1)
 	 *
 	 */
-	char operator[](uint64_t i){
+	bool operator[](uint64_t i){
 
 		assert(i<n);
 
 		//block containing position i
 		auto ib = i/w;
 
-		return (get_block(ib) >> (w-(i%w+1))) & uint128(1);
+		return (B(ib) >> (w-(i%w+1))) & uint128(1);
 
 	}
 
@@ -263,7 +281,7 @@ public:
 
 	}
 
-	uint64_t number_of_blocks(){ return blocks.size(); }
+	uint64_t number_of_blocks(){ return Q1.size(); }
 
 	uint64_t block_size(){ return w; }
 
@@ -273,40 +291,50 @@ public:
 private:
 
 	/*
-	 * get fingerprint of suffix staring at i-th block (included)
+	 * get fingerprint of prefix staring at i-th block (included)
+	 * this is array P' of the paper
+	 *
+	 * complexity: O(log m)
+	 *
 	 */
-	uint128 suffix_block_fp(uint64_t i){
+	uint128 P1(uint64_t i){
 
-		if(full_blocks.size()>0){
+		//if there are no full blocks, speed up computation of P'[i]
 
-			//re-compute i
+		if(Q1.rank(Q1.size()) == 0) return P[i];
 
-			auto it = std::lower_bound(full_blocks.begin(), full_blocks.end(), i);
-			uint64_t idx = it - full_blocks.begin();
+		auto t = Q1.predecessor_0(i);
 
-			if(idx < full_blocks.size() && full_blocks[idx] == i){
+		assert(Q1.rank(t,0) < P.size());
+		assert(t<=i);
 
-				//difficult case: locate next non-full position
-				//TODO implement binary search instead of linear scan
-				idx++;
+		return mul_pow2<w>(P[Q1.rank(t,0)],w*(i-t));
 
-				while(idx<full_blocks.size() && full_blocks[idx]-full_blocks[idx-1]==1) idx++;
+	}
 
-				i = (full_blocks[idx-1]+1) - idx;
+	/*
+	 * get i-th block
+	 * this is array B of the paper
+	 *
+	 * complexity: O(log m)
+	 *
+	 */
+	uint128 B(uint64_t i){
 
-			}else{
+		assert(i<Q1.size());
 
-				assert(i>=idx);
-				i = i - idx;
+		//first block must not be equal to q
+		assert(not Q1[0]);
 
-			}
+		//if the above is satisfied, P[0] contains the first block
+		if(i==0) return P[0];
 
-		}
+		//deal separately with blocks equal to q
+		if(Q1[i]) return q;
 
-
-		assert(i<=blocks.size());
-
-		return i == blocks.size() ? 0 : blocks[i];
+		//if the block is not equal to q, we can compute it with
+		//modular operations using array P'
+		return sub<w>( P1(i), mul_pow2<w>(P1(i-1),w) );
 
 	}
 
@@ -350,27 +378,6 @@ private:
 	  return retval[idx];
 	}*/
 
-	/*
-	 * get value of i-th block (not the prefix sum: just the block)
-	 */
-	uint128 get_block(uint64_t i){
-
-		uint64_t nb = blocks.size()+full_blocks.size();
-
-		assert(i<nb);
-
-		//blocks on the right of current block
-		uint64_t rb = nb - (i+1);
-
-		//get value of block i
-		uint128 X = sub<w>( suffix_block_fp(i), suffix_block_fp(i+1) );	//first subtract adjacent blocks
-		X = div_pow2<w>(X, rb*w);	//then right-shift
-
-		assert(X<q);
-
-		return X;
-
-	}
 
 	/*
 	 * returns the B characters following position i (included).
@@ -691,11 +698,12 @@ private:
 
 	};*/
 
-	//127-bits blocks
-	packed_vector_127  blocks;
+	//127-bits blocks. Array P in the paper
+	packed_vector_127  P;
 
-	//stores the position of blocks containing the value q
-	vector<uint64_t> full_blocks;
+	//sparse bitvector marking with a 1 blocks of value q
+	//array Q' in the paper
+	bitv Q1;
 
 	//bitvector length
 	uint64_t n = 0;

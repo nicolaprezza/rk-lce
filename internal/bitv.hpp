@@ -124,6 +124,12 @@ public:
 
 	}
 
+	uint64_t bit_size(){
+
+		return 8*sizeof(this) + ones.size()*sizeof(uint64_t);
+
+	}
+
 private:
 
 	vector<uint64_t> ones;//positions of 1's

@@ -200,6 +200,12 @@ public:
 		return n;
 	}
 
+	uint64_t bit_size(){
+
+		return 8*sizeof(this) + blocks.size()*sizeof(uint128)*8;
+
+	}
+
 private:
 
 	//word size: we use 128-bits integers
