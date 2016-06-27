@@ -16,6 +16,7 @@
 
 #include <includes.hpp>
 #include "internal/rk_lce_bin.hpp"
+#include "internal/bitv.hpp"
 
 using namespace std;
 using namespace rk_lce;
@@ -26,14 +27,38 @@ string input_pos = string();
 
 int main(int argc, char** argv){
 
+	vector<bool> BB {0,1,1,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,0};
+	bitv bv(BB);
+
+	for(int i=0;i<bv.size();++i) cout << bv[i];cout << endl;
+	for(int i=0;i<bv.size();++i) cout << bv.rank(i) << " ";cout << endl;
+
+	for(int i=0;i<bv.size();++i) cout << bv.predecessor_0(i) << " ";cout << endl;
+
+
+
+
+
+
+
+
+
+	exit(0);
+
+
+
+
 	srand(time(NULL));
-	uint64_t n = (rand()%1000000)*127;
+	uint64_t n = 100000*127;
 
 	vector<bool> B(n);
 
+	//probability of a 1
+	double p = 0.95;
+
 	for(int i=0;i<n;++i){
 
-		B[i] = rand()%2;
+		B[i] = double(rand())/RAND_MAX < p;
 
 	}
 

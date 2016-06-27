@@ -1,14 +1,14 @@
 /*
- *  This file is part of sa-rk.
+ *  This file is part of rk-lce.
  *  Copyright (c) by
  *  Nicola Prezza <nicolapr@gmail.com>
  *
- *   sa-rk is free software: you can redistribute it and/or modify
+ *   rk-lce is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation, either version 3 of the License, or
  *   (at your option) any later version.
 
- *   sa-rk is distributed in the hope that it will be useful,
+ *   rk-lce is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details (<http://www.gnu.org/licenses/>).
@@ -39,15 +39,6 @@ typedef unsigned char uchar;
 
 typedef __uint128_t uint128;
 
-// Some big Mersenne primes (2^w-1)
-// https://primes.utm.edu/lists/2small/0bit.html
-
-static constexpr uint128 M31 = (uint128(1)<<31)-1;
-static constexpr uint128 M61 = (uint128(1)<<61)-1;
-static constexpr uint128 M89 = (uint128(1)<<89)-1;
-static constexpr uint128 M107 = (uint128(1)<<107)-1;
-static constexpr uint128 M127 = (uint128(1)<<127)-1;
-
 //x-y mod 2^w-1
 template<uint16_t w>
 inline uint128 sub(uint128 x, uint128 y){
@@ -73,7 +64,7 @@ inline uint128 mul_pow2(uint128 x, uint16_t e){
 
 	static constexpr uint128 q = (uint128(1)<<w)-1;
 
-	assert( x < (uint128(1)<<w)-1 );
+	assert( x <= (uint128(1)<<w)-1 );
 
 	if(e==0) return x;
 
@@ -144,7 +135,8 @@ public:
 	 *
 	 * input: a vector of 128-bits integers, each storing a 127-bits value aligned on the right
 	 *
-	 * this class compacts the 127-bits values in a virtual array of 127-bits integers
+	 * this class compacts the 127-bits values in a virtual array of 127-bits integers (simulated using
+	 * 128-bits integers)
 	 *
 	 */
 	packed_vector_127(vector<uint128> & B){

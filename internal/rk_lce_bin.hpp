@@ -60,6 +60,8 @@ public:
 		//number of 127-bits blocks
 		auto n_bl = n/w;
 
+	    vector<uint128> blocks_128_filtered;
+
 		{
 
 			auto blocks_128 = vector<uint128>(n_bl,0);
@@ -68,6 +70,7 @@ public:
 			for(auto b:B){
 
 				blocks_128[i/w] |= (uint128(b) << (w-(i%w+1)) );
+
 				i++;
 
 			}
@@ -84,13 +87,40 @@ public:
 
 		    	blocks_128[j] = (blocks_128[j+1] + mul_pow2<w>(blocks_128[j],w*i))%q;
 
-		    	assert( div_pow2<w>(sub<w>(blocks_128[j], blocks_128[j+1]),w*i) == X );
+		    	assert( div_pow2<w>(sub<w>(blocks_128[j], blocks_128[j+1]),w*i) == X%q );
 
 		    }
 
-		    blocks = packed_vector_127(blocks_128);
+		    //detect full blocks
+
+		    uint64_t fb = 0;
+		    for(auto bl : blocks_128) fb += bl==q;
+
+		    if(blocks_128.size() - fb > 0) blocks_128_filtered = vector<uint128>(blocks_128.size() - fb);
+		    if(fb>0) full_blocks = vector<uint64_t>(fb);
+
+			i = 0;
+			uint64_t j_fb = 0; //index on full blocks
+			uint64_t j_nfb = 0; //index on not full blocks
+
+			for(auto bl : blocks_128){
+
+				if(bl == q)
+					full_blocks[j_fb++] = i;
+				else
+					blocks_128_filtered[j_nfb++] = bl;
+
+				i++;
+
+			}
 
 		}
+
+		cout << full_blocks.size() << " full blocks"<<endl;
+		cout << blocks_128_filtered.size() << " non-full blocks"<<endl;
+
+	    blocks = packed_vector_127(blocks_128_filtered);
+
 
 	}
 
@@ -243,6 +273,44 @@ public:
 private:
 
 	/*
+	 * get fingerprint of suffix staring at i-th block (included)
+	 */
+	uint128 suffix_block_fp(uint64_t i){
+
+		if(full_blocks.size()>0){
+
+			//re-compute i
+
+			auto it = std::lower_bound(full_blocks.begin(), full_blocks.end(), i);
+			uint64_t idx = it - full_blocks.begin();
+
+			if(idx < full_blocks.size() && full_blocks[idx] == i){
+
+				//difficult case: locate next non-full position
+				//TODO implement binary search instead of linear scan
+				idx++;
+
+				while(idx<full_blocks.size() && full_blocks[idx]-full_blocks[idx-1]==1) idx++;
+
+				i = (full_blocks[idx-1]+1) - idx;
+
+			}else{
+
+				assert(i>=idx);
+				i = i - idx;
+
+			}
+
+		}
+
+
+		assert(i<=blocks.size());
+
+		return i == blocks.size() ? 0 : blocks[i];
+
+	}
+
+	/*
 	 * LCE between i-th and j-th suffixes
 	 *
 	 * complexity: O(log n) (a binary search)
@@ -287,15 +355,15 @@ private:
 	 */
 	uint128 get_block(uint64_t i){
 
-		uint64_t nb = blocks.size();
+		uint64_t nb = blocks.size()+full_blocks.size();
 
-		assert(i < nb);
+		assert(i<nb);
 
 		//blocks on the right of current block
 		uint64_t rb = nb - (i+1);
 
 		//get value of block i
-		uint128 X = sub<w>( blocks[i], ( i == nb-1 ? 0 : blocks[i+1] ) );	//first subtract adjacent blocks
+		uint128 X = sub<w>( suffix_block_fp(i), suffix_block_fp(i+1) );	//first subtract adjacent blocks
 		X = div_pow2<w>(X, rb*w);	//then right-shift
 
 		assert(X<q);
@@ -625,6 +693,9 @@ private:
 
 	//127-bits blocks
 	packed_vector_127  blocks;
+
+	//stores the position of blocks containing the value q
+	vector<uint64_t> full_blocks;
 
 	//bitvector length
 	uint64_t n = 0;
