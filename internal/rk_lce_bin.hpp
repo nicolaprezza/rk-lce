@@ -159,26 +159,40 @@ public:
 	}
 
 	/*
+	 * return block of bits T[i,...,i+len-1] aligned on the left of the word
+	 *
+	 * block must fit in a memory word: len <= 128
+	 *
+	 */
+	uint128 operator()(uint64_t i, uint64_t len=128){
+
+		assert(len <= 128);
+
+		auto ib = i/w;
+
+		uint128 L = B(ib) << (i%w+1);
+		uint128 R = ib == Q1.size()-1 ? 0 : B(ib+1) >> (w-(i%w)-1);
+
+		auto block = L|R;
+
+		uint128 MASK = len==128 ? ~0 : ((uint128(1)<<len)-1) << (128-len);
+
+		return block & MASK;
+
+	}
+
+	/*
 	 * LCE between i-th and j-th suffixes
 	 *
 	 * complexity:
 	 *
-	 * - O(1) if the LCE is shorter than T.block_size()
+	 * - O(1) if the LCE is shorter than memory word (128 bits)
 	 *
 	 * - O(log n) otherwise
 	 *
 	 */
 	uint64_t LCE(uint64_t i, uint64_t j){
 
-		if(i==j) return n-i;
-
-		auto lce = LCE_binary(i,j);
-
-		//assert(lce == LCE_naive(i,j));
-
-		return lce;
-
-		/*
 		assert(i<n);
 		assert(j<n);
 
@@ -192,41 +206,24 @@ public:
 		auto i_len = n-i;
 		auto j_len = n-j;
 
-		auto i_block = get_block_from_position(i+pad);
-		auto j_block = get_block_from_position(j+pad);
+		auto i_block = operator()(i);
+		auto j_block = operator()(j);
 
-		if(i_block != j_block or i_len <= B or j_len <= B){
+		if(i_block != j_block or i_len <= 128 or j_len <= 128){
 
-			auto leading_zeros = clz_u128(i_block ^ j_block);
-			uint64_t lce = leading_zeros / log2_sigma;
+			auto lce = clz_u128(i_block ^ j_block);
 
 			auto min = std::min(i_len,j_len);
 
 			lce = lce > min ? min : lce;
 
-			assert(lce == LCE_naive(i,j));
+			//assert(lce == LCE_naive(i,j));
 
 			return lce;
 
 		}
 
-		auto lce = LCE_binary(i,j);
-
-		if(lce != LCE_naive(i,j)){
-
-			cout << endl << i << ", " << j <<endl;
-			cout << "LCE = " << lce << endl;
-			cout << "LCE trivial = " << LCE_naive(i,j) << endl;
-
-			for(uint64_t k = i; k<i+100 and k<n;++k) cout << operator[](k); cout << endl;
-			for(uint64_t k = j; k<j+100 and k<n;++k) cout << operator[](k); cout << endl;
-
-
-		}
-
-		assert(lce == LCE_naive(i,j));
-
-		return lce;*/
+		return LCE_binary(i,j);
 
 	}
 
