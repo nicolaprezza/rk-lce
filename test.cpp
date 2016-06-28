@@ -33,7 +33,7 @@ int main(int argc, char** argv){
 	vector<bool> B(n);
 
 	//probability of a 1
-	double p = 0.99;
+	double p = 0.8;
 
 	for(int i=0;i<n;++i){
 
@@ -49,10 +49,39 @@ int main(int argc, char** argv){
 	cout << "Size of the input: " << n/8 << " bytes" << endl;
 	cout << "Size of the structure: " << lce.bit_size()/8 << " bytes" << endl;
 
+	cout << "testing access ... " << flush;
+
 	for(int i=0;i<B.size();++i){
 
 		assert(B[i]==lce[i]);
 
 	}
+
+	cout << "done.\ntesting LCE ... "<<flush;
+
+	for(int t =0;t<5000000;++t){
+
+		auto i = rand()%n;
+		auto j = rand()%n;
+
+		auto lce_n = lce.LCE_naive(i,j);
+		auto lce_f = lce.LCE(i,j);
+
+		if(lce_n!=lce_f){
+
+			cout << "i = " << i << ", j = " << j << endl;
+			cout << "naive = " << lce_n << endl;
+			cout << "fast = " << lce_f << endl;
+
+			for(int ki = i;ki<i+lce_f+1;++ki) cout << B[ki];cout << endl;
+			for(int kj = j;kj<j+lce_f+1;++kj) cout << B[kj];cout << endl;
+
+			exit(0);
+
+		}
+
+	}
+
+	cout << "\n\ndone" << endl;
 
 }

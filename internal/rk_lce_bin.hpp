@@ -50,7 +50,7 @@ public:
 
 	/*
 	 * Build RK-LCE structure over the bitvector. Note that the size of
-	 * the bitvector must be a multiple of w!
+	 * the bitvector must be a multiple of w and first w bits must not be equal to 1111...111
 	 */
 	rk_lce_bin(vector<bool> & input_bitvector){
 
@@ -141,7 +141,6 @@ public:
 
 	}
 
-
 	/*
 	 * access i-th bit
 	 *
@@ -171,7 +170,13 @@ public:
 	 */
 	uint64_t LCE(uint64_t i, uint64_t j){
 
-		return LCE_naive(i,j);
+		if(i==j) return n-i;
+
+		auto lce = LCE_binary(i,j);
+
+		//assert(lce == LCE_naive(i,j));
+
+		return lce;
 
 		/*
 		assert(i<n);
@@ -230,40 +235,21 @@ public:
 	 *
 	 * Time: O(1)
 	 *
-	 * the fingerprints i_fp and j_fp of T[i,...,n-1] and T[j,...,n-1]
+	 * the fingerprints i_fp and j_fp of T[0,...,i-1] and T[0,...,j-1]
 	 * can be provided for more efficiency
 	 *
 	 */
-	/*bool equals(uint64_t i, uint64_t j, uint64_t l, uint128 i_fp = q, uint128 j_fp = q){
+	bool equals(uint64_t i, uint64_t j, uint64_t l, uint128 i_fp = q, uint128 j_fp = q){
 
 		assert(i+l-1<n);
 		assert(j+l-1<n);
 
-		i += pad;
-		j += pad;
+		uint128 fpi = RK(i,i+l-1,i_fp);
+		uint128 fpj = RK(j,j+l-1,j_fp);
 
-		if(i==j) return true;
+		return fpi == fpj;
 
-		//reorder i and j such that i<j
-
-		if(i>j){
-
-			auto t = i;
-			i = j;
-			j = t;
-
-		}
-
-		uint128 Xi = get_pref_suf_fp(i,i+l-1, i_fp);
-		uint128 Xj = get_pref_suf_fp(j,j+l-1, j_fp);
-
-		uint64_t exp = (j-i)*log2_sigma;
-
-		Xj = mul_pow2<w>(Xj,exp);
-
-		return Xj == Xi;
-
-	}*/
+	}
 
 
 	/*
@@ -289,6 +275,42 @@ public:
 	uint64_t size(){ return n; }
 
 private:
+
+	/*
+	 * rabin-karp fingerprint of T[0,...,i]
+	 *
+	 */
+	uint128 RK(uint64_t i){
+
+		auto j = i/w;
+
+		uint128 L = j==0 ? 0 : mul_pow2<w>(P1(j-1),i-j*w+1);
+		uint128 R = B(j) >> (w-(i%w+1));
+
+		return (L+R)%q;
+
+	}
+
+	/*
+	 * rabin-karp fingerprint of T[i,...,j]
+	 *
+	 * for efficiency, rki=RK(i-1) can be specified as input
+	 *
+	 */
+	uint128 RK(uint64_t i, uint64_t j, uint128 rki=q){
+
+		assert(j>=i);
+
+		rki = rki != q ? rki : ( i==0 ? 0 : RK(i-1) );
+
+		rki = mul_pow2<w>(rki, j-i+1);
+
+		uint128 rkj = RK(j);
+
+		return sub<w>(rkj,rki);
+
+	}
+
 
 	/*
 	 * get fingerprint of prefix staring at i-th block (included)
@@ -344,19 +366,18 @@ private:
 	 * complexity: O(log n) (a binary search)
 	 *
 	 */
-	/*uint64_t LCE_binary(uint64_t i, uint64_t j){
+	uint64_t LCE_binary(uint64_t i, uint64_t j){
+
+		assert(i!=j);
 
 		//length of the suffixes
 		auto i_len = n-i;
 		auto j_len = n-j;
 
-		assert(i_len > w);
-		assert(j_len > w);
-
     	auto sc = suffix_comparator(this, i, j);
 
-    	cout << endl;
-    	for(int i=0;i< 100;++i) cout << sc[i];cout << endl;
+    	//cout << endl;
+    	//for(int i=0;i< 100;++i) cout << sc[i];cout << endl;
 
     	//lce = (position of first 1 in bitvector sc) - 1
     	auto lce = uint64_t(std::upper_bound(sc.begin(), sc.end(), false)) - 1;
@@ -365,126 +386,6 @@ private:
 
 	}
 
-
-	inline int clz_u128 (uint128 u) {
-	  uint64_t hi = u>>64;
-	  uint64_t lo = u;
-	  int retval[3]={
-	    __builtin_clzll(hi),
-	    __builtin_clzll(lo)+64,
-	    128
-	  };
-	  int idx = !hi + ((!lo)&(!hi));
-	  return retval[idx];
-	}*/
-
-
-	/*
-	 * returns the B characters following position i (included).
-	 * The value is left-aligned: first character begins at the leftmost bit.
-	 * A padding of 0 is
-	 * added to the right if there are less than B characters on the right of
-	 * position i
-	 *
-	 * Time: O(1)
-	 *
-	 */
-	/*uint128 get_block_from_position(uint64_t i){
-
-		assert(i<N);
-
-		uint16_t l_shift = 128 - B*log2_sigma;
-		uint64_t ib = i/B;
-
-		if(i%B==0) return get_block(ib)<<l_shift;
-
-		//resp. number of charachters to take from
-		//right and left block
-		uint16_t r_c = i%B;
-		uint16_t l_c = B - r_c;
-
-		uint64_t nb = blocks.size();
-
-		auto l_block = get_block(ib);//block containing position i
-		auto r_block = ib==nb-1 ? 0 : get_block(ib+1);//next block, if it exists
-
-		uint128 X = l_block << log2_sigma*r_c;
-		X |= r_block >> log2_sigma*l_c;
-
-		return X<<l_shift;
-
-	}*/
-
-	/*
-	 * returns the Rabin-Karp fingerprint of T[i,...,j]000...000 (inclusive),
-	 * where there are n - (j+1) zeros on the right
-	 *
-	 * Time: O(1)
-	 *
-	 * the fingerprint i_fp of T[i,...,n-1] can be provided for more efficiency
-	 *
-	 */
-	/*uint128 get_pref_suf_fp(uint64_t i, uint64_t j, uint128 i_fp = q){
-
-		return sub<w>(  i_fp == q ? get_suf_fp(i) : i_fp , get_suf_fp(j+1) );
-
-	}*/
-
-	/* get fingerprint of i-th suffix (from the leftmost: full text is suffix 0.
-	 * n-th suffix corresponds to empty string and has fingerprint = 0
-	 *
-	 * O(1) time
-	 *
-	 */
-	/*uint128 get_suf_fp(uint64_t i){
-
-		assert(i<=N);
-
-		if(i==N) return 0;
-
-		uint64_t ib = i/B;
-		uint64_t nb = blocks.size();
-
-		//content of the block following the one containing position i (0 if it does not exist)
-		uint128 next_block = ib == nb-1 ? 0 : blocks[ib+1];
-		uint128 this_block = blocks[ib];
-
-		uint128 R = i%B == 0 ? this_block : next_block;
-
-		uint128 MASK = i%B == 0 ? 0 : ( uint128(1) << (log2_sigma*(B-i%B)) ) - 1;
-
-		//number of blocks on the right of this block
-		uint64_t rb = nb - (ib+1);
-
-		uint128 L = i%B == 0 ? 0 : mul_pow2<w>(get_block(ib) & MASK,rb*B*log2_sigma);
-
-		return (L+R)%q;
-
-	}*/
-
-	/*uint128 get_suf_fp1(uint64_t i){
-
-		assert(i<=N);
-
-		if(i==N) return 0;
-
-		i -= pad;
-
-		uint64_t e = 0;
-
-		uint128 X = 0;
-
-		for(int64_t j=n-1;j>=int64_t(i);--j){
-
-
-			X = (X + mul_pow2<w>(char_to_uint[uint16_t(operator[](j))],e))%q;
-			e += log2_sigma;
-
-		}
-
-		return X;
-
-	}*/
 
 	/*
 	 * this class is built upon two suffixes i != j. Let i<j (other way is symmetric). The class offers an abstraction
@@ -496,7 +397,7 @@ private:
 	 * The class implements an iterator so that std binary search can be used on it.
 	 *
 	 */
-	/*class suffix_comparator{
+	class suffix_comparator{
 
 	   class sc_iterator  : public std::iterator<random_access_iterator_tag,bool >{
 
@@ -619,7 +520,7 @@ private:
 
 	public:
 
-		suffix_comparator(rk_lce_bin<w> * T, uint64_t i, uint64_t j){
+		suffix_comparator(rk_lce_bin * T, uint64_t i, uint64_t j){
 
 			//check these conditions outside this class
 			assert(i!=j);
@@ -640,8 +541,8 @@ private:
 			this->i = i;
 			this->j = j;
 
-			i_fp = T->get_suf_fp(i+T->padding());
-			j_fp = T->get_suf_fp(j+T->padding());
+			i_fp = i==0 ? 0 : T->RK(i-1);
+			j_fp = j==0 ? 0 : T->RK(j-1);
 
 			/*
 			 * T->size() - j is the length of suffix j. We add a virtual
@@ -650,12 +551,7 @@ private:
 			 * (because we include length 0)
 			 */
 
-
-	/*
-	 *
 			n = (T->size() - j) + 2;
-			log2_sigma = T->log_alphabet_size();
-			B = T->block_size();
 
 		}
 
@@ -670,8 +566,8 @@ private:
 			//empty prefixes are equal
 			if(t == 0) return false;
 
-			return not T->equals(i,j,t);
-			//return not T->equals(i,j,t,i_fp,j_fp);
+			//return not T->equals(i,j,t);
+			return not T->equals(i,j,t,i_fp,j_fp);
 
 		}
 
@@ -682,21 +578,18 @@ private:
 
 	private:
 
-		rk_lce_bin<w> * T;
+		rk_lce_bin * T;
 
 		uint64_t n;
 
 		uint64_t i;
 		uint64_t j;
 
-		uint16_t log2_sigma;
-		uint16_t B;
-
-		//fingerprints of i-th and j-th suffixes
+		//fingerprints of (i-1)-th and (j-1)-th prefixes
 		uint128 i_fp;
 		uint128 j_fp;
 
-	};*/
+	};
 
 	//127-bits blocks. Array P in the paper
 	packed_vector_127  P;

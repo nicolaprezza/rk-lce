@@ -121,6 +121,19 @@ inline uint128 div_pow2(uint128 x, uint16_t e){
 
 }
 
+inline int clz_u128 (uint128 u) {
+  uint64_t hi = u>>64;
+  uint64_t lo = u;
+  int retval[3]={
+    __builtin_clzll(hi),
+    __builtin_clzll(lo)+64,
+    128
+  };
+  int idx = !hi + ((!lo)&(!hi));
+  return retval[idx];
+}
+
+
 /*
  * simulates a vector of 127-bits integers
  */
