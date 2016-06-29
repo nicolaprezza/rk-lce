@@ -15,18 +15,18 @@
  */
 
 #include <includes.hpp>
+#include "internal/rk_lce.hpp"
 #include "internal/rk_lce_bin.hpp"
 #include "internal/bitv.hpp"
 
 using namespace std;
-using namespace rk_lce;
+using namespace rklce;
 
 string output_file = string();
 string input_text = string();
 string input_pos = string();
 
-int main(int argc, char** argv){
-
+void test_bin_lce(){
 	srand(time(NULL));
 	uint64_t n = 10000*127;
 
@@ -59,7 +59,7 @@ int main(int argc, char** argv){
 
 	cout << "done.\ntesting LCE ... "<<flush;
 
-	for(int t =0;t<5000000;++t){
+	for(int t =0;t<500000;++t){
 
 		auto i = rand()%n;
 		auto j = rand()%n;
@@ -83,5 +83,57 @@ int main(int argc, char** argv){
 	}
 
 	cout << "\n\ndone" << endl;
+}
+
+int main(int argc, char** argv){
+
+    using std::chrono::high_resolution_clock;
+    using std::chrono::duration_cast;
+    using std::chrono::duration;
+
+	srand(time(NULL));
+
+	string text_path = string(argv[1]);
+	int rep = atoi(argv[2]);
+
+	cout << "Building structure ... " << endl;
+
+    auto t1 = high_resolution_clock::now();
+	rk_lce lce(text_path);
+    auto t2 = high_resolution_clock::now();
+
+	cout << "Size of the input: " << lce.size() << " Bytes" << endl;
+	cout << "Size of the structure: " << lce.bit_size()/8 << " bytes" << endl;
+
+	cout << "Testing LCE ... " << endl;
+
+	double sum_lce=0;
+
+	for(int k=0;k<rep;++k){
+
+		uint64_t i = rand()%lce.size();
+		uint64_t j = rand()%lce.size();
+
+		auto lce_fast = lce.LCE(i,j);
+
+		sum_lce += lce_fast;
+
+		/*if(lce_fast!= lce.LCE_naive(i,j)){
+			cout << "error."<<endl;
+			exit(0);
+		}*/
+
+	}
+
+	cout << "Average LCE: " << sum_lce/rep << endl;
+
+    auto t3 = high_resolution_clock::now();
+
+	uint64_t build = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+	uint64_t compute = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
+
+	cout << "Build time: " << (double)build << " ms" << endl;
+	cout << "Computation time: " << (double)compute << " ms" << endl;
+	cout << "Time per LCE query: " << (double)compute/rep << " ms" << endl;
 
 }

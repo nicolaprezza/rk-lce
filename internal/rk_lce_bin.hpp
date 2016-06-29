@@ -36,7 +36,7 @@
 #include <includes.hpp>
 #include <bitv.hpp>
 
-namespace rk_lce{
+namespace rklce{
 
 class rk_lce_bin{
 
@@ -47,6 +47,8 @@ public:
 
 	//modulo
 	static constexpr uint128 q = (uint128(1)<<w)-1;
+
+	rk_lce_bin(){}
 
 	/*
 	 * Build RK-LCE structure over the bitvector. Note that the size of

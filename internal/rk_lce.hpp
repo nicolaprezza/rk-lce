@@ -20,20 +20,19 @@
  *  Created on: Jun 4, 2016
  *      Author: Nicola Prezza
  *
- *  Encodes a text with suffix-inclusive Rabin-Karp hash function. This structure supports access to the text and
- *  fast computation of the RK function of any text suffix
+ *  Encodes a text with prefix-inclusive Rabin-Karp hash function.
+ *  This structure supports random access to the text and LCE queries
  *
- *  Space: n*ceil(log_2 sigma) bits
+ *  Space: n*ceil(log_2 sigma) bits + O(1) words
  *  Supports:
- *  	- access to the text in in O(1) time per character
+ *  	- access to the text in in O(1) time per block of 128/log_2 sigma characters
  *  	- LCP between any two text suffixes in O(log n) time
  *
  *  The class moreover can return a function to lexicographically-compare in O(log n) time any two
  *  text suffixes (useful for suffix-sorting in-place any subset of text positions)
  *
- *  Note: though there is a probability of getting a wrong LCP result due to hash collisions,
- *  this probability is less than 2^-120 for any reasonable-sized text (n<2^128): there is a
- *  (by far) higher chance of getting a wrong result by a cosmic ray flipping a bit in RAM during computation!
+ *  Note: there is a probability of getting a wrong LCP result due to hash collisions.
+ *  however, this probability is less than 2^-120 for any real-case text
  *
  */
 
@@ -41,15 +40,16 @@
 #define INTERNAL_RK_LCE_HPP_
 
 #include <includes.hpp>
+#include <rk_lce_bin.hpp>
 
-namespace rk_lce{
+namespace rklce{
 
-template<uint16_t w>
 class rk_lce{
 
 public:
 
-	static constexpr uint128 q = (uint128(1)<<w)-1;
+	//block size
+	static constexpr uint16_t w = 127;
 
 	/*
 	 * Build RK-LCP structure over the text stored at this path
@@ -59,8 +59,6 @@ public:
 	    char_to_uint = vector<uint8_t>(256);
 	    uint_to_char = vector<char>(256);
 
-	    vector<bool> mapped(256,false);
-
 	    // DETECT ALPHABET
 
 	    //alphabet size. To be rounded to the next power of 2
@@ -68,6 +66,8 @@ public:
 	    n = 0;
 	    int sigma_temp = 0;
 	    {
+
+		    vector<bool> mapped(256,false);
 
 			ifstream ifs(filename,std::ios::binary);
 
@@ -107,24 +107,39 @@ public:
 	    //if sigma_temp == 0, log2_sigma must be at least 1 bit
 	    log2_sigma = log2_sigma == 0 ? 1 : log2_sigma;
 
-	    //find largest B such that sigma^B <= q
-	    B = 1;
-	    uint128 temp = sigma;
+	    //pad the binary text with this number of 0's: as a result,
+	    //first block of the binary text is different than q and
+	    //the binary text size is a multiple of w
+	    pad = w - (n*log2_sigma)%w;
 
-	    while(q/temp >= sigma){
+	    //init binary text with the padding of zeros
+	    auto binary_text = vector<bool>(pad,false);
 
-	    	temp *= sigma;
-	    	B++;
+	    //push back binary encoding of input text
+	    {
+
+			ifstream ifs(filename,std::ios::binary);
+
+			uint8_t c;
+
+			while(ifs >> c){
+
+				//char encoding
+				auto bc = char_to_uint[c];
+
+				for(int j=0;j<log2_sigma;++j){
+
+					bool b = (bc >> (log2_sigma-j-1)) & uint8_t(1);
+					binary_text.push_back(b);
+
+				}
+
+			}
 
 	    }
 
-	    assert(temp<q);
-
-	    //we add a left padding
-	    pad = n%B==0 ? 0 : B - (n%B);
-	    N = n+pad;
-
-	    assert(N%B == 0);
+	    //build LCE structure of the binary text
+	    bin_lce = rk_lce_bin(binary_text);
 
 	}
 
@@ -136,7 +151,16 @@ public:
 	 */
 	char operator[](uint64_t i){
 
-		return 0;
+		auto ib = i*log2_sigma + pad;
+
+		//extract block of log2_sigma bits
+		auto C = bin_lce(ib,log2_sigma);
+
+		C = C >> (128-log2_sigma);
+
+		assert(C<uint_to_char.size());
+
+		return uint_to_char[C];
 
 	}
 
@@ -152,7 +176,25 @@ public:
 	 */
 	uint64_t LCE(uint64_t i, uint64_t j){
 
-		return 0;
+		auto ib = i*log2_sigma + pad;
+		auto jb = j*log2_sigma + pad;
+
+		return bin_lce.LCE(ib,jb)/log2_sigma;
+
+	}
+
+	/*
+	 * O(n)-time implementation of LCE
+	 */
+	uint64_t LCE_naive(uint64_t i, uint64_t j){
+
+		if(i==j) return n-i;
+
+		uint64_t lce = 0;
+
+		while( i+lce < n and j+lce<n and operator[](i+lce) == operator[](j+lce)) lce++;
+
+		return lce;
 
 	}
 
@@ -172,7 +214,7 @@ public:
 	    	//rightmost suffix is the shortest
 	    	uint64_t min = i<j ? j : i;
 
-	    	auto lce = LCP(i,j);
+	    	auto lce = LCE(i,j);
 
 	    	//in this case shortest suffix is the smallest
 	    	if(lce == n-min) return i==min;
@@ -190,22 +232,26 @@ public:
 
 	}
 
+	uint64_t bit_size(){
+
+		return 	bin_lce.bit_size() +
+				sizeof(this)*8 +
+				char_to_uint.size()*8 +
+				uint_to_char.size()*8;
+
+	}
+
 	uint64_t number_of_blocks(){ return 0; }
 
-	uint64_t block_size(){ return B; }
 	uint64_t length(){ return n; }
 
 	uint64_t padding(){return pad;}
-	uint64_t padded_size(){ return N; }
 	uint64_t size(){ return n; }
 
 	uint16_t alphabet_size(){return sigma;}
 	uint16_t log_alphabet_size(){return log2_sigma;}
 
 private:
-
-
-
 
 	vector<uint8_t> char_to_uint;
 	vector<char> uint_to_char;
@@ -217,17 +263,13 @@ private:
 	//size of the stored text is n+pad
 	uint64_t pad;
 
-	//length of padded text = n+pad
-	uint64_t N;
-
-	//block size
-	uint64_t B;
-
 	//power of 2 immediately greater than or equal to alphabet size
 	uint16_t sigma;
 
 	//log_2(sigma)
 	uint16_t log2_sigma;
+
+	rk_lce_bin bin_lce;
 
 };
 

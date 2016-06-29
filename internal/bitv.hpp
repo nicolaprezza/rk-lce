@@ -34,7 +34,7 @@
 
 #include <includes.hpp>
 
-namespace rk_lce{
+namespace rklce{
 
 class bitv{
 

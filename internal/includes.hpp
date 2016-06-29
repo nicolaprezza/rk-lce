@@ -33,7 +33,7 @@
 
 using namespace std;
 
-namespace rk_lce{
+namespace rklce{
 
 typedef unsigned char uchar;
 
