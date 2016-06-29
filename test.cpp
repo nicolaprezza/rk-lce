@@ -103,7 +103,8 @@ int main(int argc, char** argv){
     auto t2 = high_resolution_clock::now();
 
 	cout << "Size of the input: " << lce.size() << " Bytes" << endl;
-	cout << "Size of the structure: " << lce.bit_size()/8 << " bytes" << endl;
+	cout << "Size of the structure: " << lce.bit_size()/8 << " Bytes" << endl;
+	cout << "Difference (structure-input): " << int64_t(lce.bit_size()/8) -  int64_t(lce.size()) << " Bytes" << endl;
 
 	cout << "Testing LCE ... " << endl;
 
