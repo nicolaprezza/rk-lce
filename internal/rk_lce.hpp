@@ -32,7 +32,7 @@
  *  text suffixes (useful for suffix-sorting in-place any subset of text positions)
  *
  *  Note: there is a probability of getting a wrong LCP result due to hash collisions.
- *  however, this probability is less than 2^-120 for any real-case text
+ *  however, this probability is less than 2^-120 for real-case texts
  *
  */
 
@@ -241,15 +241,10 @@ public:
 
 	}
 
-	uint64_t number_of_blocks(){ return 0; }
-
 	uint64_t length(){ return n; }
-
-	uint64_t padding(){return pad;}
 	uint64_t size(){ return n; }
 
 	uint16_t alphabet_size(){return sigma;}
-	uint16_t log_alphabet_size(){return log2_sigma;}
 
 private:
 
