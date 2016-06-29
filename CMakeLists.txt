@@ -22,3 +22,4 @@ set(CMAKE_CXX_FLAGS_RELEASE "-g -ggdb -Ofast -fstrict-aliasing -DNDEBUG -march=n
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -ggdb -Ofast -fstrict-aliasing -march=native")
 
 add_executable(test test.cpp)
+add_executable(sa-rk sa-rk.cpp)

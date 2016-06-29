@@ -69,18 +69,18 @@ public:
 
 		    vector<bool> mapped(256,false);
 
-			ifstream ifs(filename,std::ios::binary);
+			ifstream ifs(filename);
 
-			uint8_t c;
+			char c;
 
-			while(ifs >> c){
+			while(ifs.get(c)){
 
-				if(not mapped[c]){
+				if(not mapped[uint8_t(c)]){
 
-					mapped[c] = true;
+					mapped[uint8_t(c)] = true;
 
-					char_to_uint[c] = sigma_temp;
-					uint_to_char[sigma_temp] = char(c);
+					char_to_uint[uint8_t(c)] = sigma_temp;
+					uint_to_char[sigma_temp] = c;
 
 					sigma_temp++;
 
@@ -118,14 +118,14 @@ public:
 	    //push back binary encoding of input text
 	    {
 
-			ifstream ifs(filename,std::ios::binary);
+			ifstream ifs(filename);
 
-			uint8_t c;
+			char c;
 
-			while(ifs >> c){
+			while(ifs.get(c)){
 
 				//char encoding
-				auto bc = char_to_uint[c];
+				auto bc = char_to_uint[uint8_t(c)];
 
 				for(int j=0;j<log2_sigma;++j){
 
