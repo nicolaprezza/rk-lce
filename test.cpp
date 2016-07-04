@@ -96,10 +96,39 @@ int main(int argc, char** argv){
 	string text_path = string(argv[1]);
 	int rep = atoi(argv[2]);
 
+    auto t0 = high_resolution_clock::now();
+	time_t x=0;
+
+    /*
+     * we measure the time taken to access the string stored as an array of chars to
+     * make a comparison with the structure
+     */
+	{
+
+		ifstream ifs(text_path);
+
+		stringstream strStream;
+		strStream << ifs.rdbuf();//read the file
+		string str = strStream.str();//str holds the content of the file
+
+	    t0 = high_resolution_clock::now();
+
+	    for(int k=0;k<rep;++k){
+
+			auto c = str[rand()%str.size()];
+			x |= c;
+
+		}
+
+	    srand(time(&x));
+
+	}
+
 	cout << "Building structure ... " << endl;
 
     auto t1 = high_resolution_clock::now();
-	rk_lce lce(text_path);
+
+    rk_lce lce(text_path);
     auto t2 = high_resolution_clock::now();
 
 	cout << "Size of the input: " << lce.size() << " Bytes" << endl;
@@ -130,11 +159,29 @@ int main(int argc, char** argv){
 
     auto t3 = high_resolution_clock::now();
 
+	cout << "Testing access ... " << endl;
+
+	for(int k=0;k<rep;++k){
+
+		x |= lce[rand()%lce.size()];
+
+	}
+
+    srand(time(&x));
+
+    auto t4 = high_resolution_clock::now();
+
+	uint64_t access_str = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 	uint64_t build = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
 	uint64_t compute = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
+	uint64_t access = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count();
 
-	cout << "Build time: " << (double)build << " ms" << endl;
-	cout << "Computation time: " << (double)compute << " ms" << endl;
-	cout << "Time per LCE query: " << (double)compute/rep << " ms" << endl;
+	cout << "Build time: " << (double)build << " ms" << endl << endl;
+	cout << "LCE time: " << (double)compute << " ms" << endl;
+	cout << "Time per LCE query: " << (double)compute/rep << " ms" << endl<<endl;
+	cout << "Access time: " << (double)access << " ms" << endl;
+	cout << "Time per access query: " << (double)access/rep << " ms" << endl<<endl;
+	cout << "Access time for a string object: " << (double)access_str << " ms" << endl;
+	cout << "Time per access query on a string object: " << (double)access_str/rep << " ms" << endl<<endl;
 
 }
