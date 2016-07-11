@@ -105,8 +105,8 @@ public:
 
 		    }
 
-			cout << Q1.rank(Q1.size()) << " full blocks"<<endl;
-			cout << Q1.rank(Q1.size(),0) << " non-full blocks"<<endl;
+			//cout << Q1.rank(Q1.size()) << " full blocks"<<endl;
+			//cout << Q1.rank(Q1.size(),0) << " non-full blocks"<<endl;
 
 		    // NOW COMPUTE PREFIX SUMS (array P' in the paper. here we overwrite B_vec with P')
 
@@ -203,8 +203,6 @@ public:
 
 		//one of the two suffixes are empty
 		if(i == n or j == n) return 0;
-
-return LCE_binary(i,j);
 
 		//length of the suffixes
 		auto i_len = n-i;
@@ -314,7 +312,7 @@ private:
 
 
 	/*
-	 * get fingerprint of prefix staring at i-th block (included)
+	 * get fingerprint of prefix starting at i-th block (included)
 	 * this is array P' of the paper
 	 *
 	 * complexity: O(log m)

@@ -40,7 +40,7 @@ typedef unsigned char uchar;
 typedef __uint128_t uint128;
 
 //x-y mod 2^w-1
-template<uint16_t w>
+template<uint64_t w>
 inline uint128 sub(uint128 x, uint128 y){
 
 	constexpr uint128 q = (uint128(1)<<w)-1;
@@ -59,8 +59,8 @@ inline uint128 sub(uint128 x, uint128 y){
  * left cyclic permutation of e mod w positions)
  *
  */
-template<uint16_t w>
-inline uint128 mul_pow2(uint128 x, uint16_t e){
+template<uint64_t w>
+inline uint128 mul_pow2(uint128 x, uint64_t e){
 
 	static constexpr uint128 q = (uint128(1)<<w)-1;
 
@@ -70,8 +70,8 @@ inline uint128 mul_pow2(uint128 x, uint16_t e){
 
 	e = e % w;
 
-	uint16_t l_bits = e;		//how many bits exit from left and enter from right
-	uint16_t r_bits = w-l_bits;
+	uint64_t l_bits = e;		//how many bits exit from left and enter from right
+	uint64_t r_bits = w-l_bits;
 
 	uint128 MASK = (uint128(1) << r_bits)-1;
 
@@ -94,8 +94,8 @@ inline uint128 mul_pow2(uint128 x, uint16_t e){
  * right cyclic permutation of e mod w positions)
  *
  */
-template<uint16_t w>
-inline uint128 div_pow2(uint128 x, uint16_t e){
+template<uint64_t w>
+inline uint128 div_pow2(uint128 x, uint64_t e){
 
 	static constexpr uint128 q = (uint128(1)<<w)-1;
 
@@ -105,8 +105,8 @@ inline uint128 div_pow2(uint128 x, uint16_t e){
 
 	e = e % w;
 
-	uint16_t r_bits = e;		//how many bits exit from right and enter from left
-	uint16_t l_bits = w-r_bits;
+	uint64_t r_bits = e;		//how many bits exit from right and enter from left
+	uint64_t l_bits = w-r_bits;
 
 	uint128 MASK = (uint128(1) << r_bits)-1;
 
@@ -169,7 +169,7 @@ public:
 			//the vector must contain 127-bits integers
 			assert( block < uint128(1)<<BL );
 
-			for(uint16_t j = 0; j < BL; ++j){
+			for(uint64_t j = 0; j < BL; ++j){
 
 				uint128 b = (block >> (BL - (j+1))) & uint128(1);
 
@@ -222,10 +222,10 @@ public:
 private:
 
 	//word size: we use 128-bits integers
-	static const uint16_t W = 128;
+	static const uint64_t W = 128;
 
 	//block length
-	static const uint16_t BL = 127;
+	static const uint64_t BL = 127;
 
 	//number of 127-bits integers
 	uint64_t n = 0;

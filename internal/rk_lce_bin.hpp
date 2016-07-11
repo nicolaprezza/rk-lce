@@ -43,7 +43,7 @@ class rk_lce_bin{
 public:
 
 	//For efficiency reasons, the Mersenne number is fixed: 2^127-1
-	static constexpr uint16_t w = 127;
+	static constexpr uint64_t w = 127;
 
 	//modulo
 	static constexpr uint128 q = (uint128(1)<<w)-1;
@@ -225,7 +225,10 @@ public:
 
 		}
 
-		return LCE_binary(i,j);
+		auto lce = LCE_binary(i,j);
+		assert(lce == LCE_naive(i,j));
+
+		return lce;
 
 	}
 
@@ -375,11 +378,18 @@ private:
 
     	auto sc = suffix_comparator(this, i, j);
 
+    	uint64_t k = 1;
+
+    	//exponential search
+
+    	while(k<sc.size() && not sc[k]) k *= 2;
+    	if(k>=sc.size()) k = sc.size();
+
     	//cout << endl;
     	//for(int i=0;i< 100;++i) cout << sc[i];cout << endl;
 
     	//lce = (position of first 1 in bitvector sc) - 1
-    	auto lce = uint64_t(std::upper_bound(sc.begin(), sc.end(), false)) - 1;
+    	auto lce = uint64_t(std::upper_bound(sc.begin(), sc.begin()+k, false)) - 1;
 
     	return lce;
 

@@ -120,7 +120,10 @@ int main(int argc, char** argv){
 
 		}
 
-	    srand(time(&x));
+		/* since we use x, the compiler is forced to execute the above operations
+		* (otherwise some compilers may optimize and not execute the accesses)		
+		*/
+		srand(time(&x));
 
 	}
 
@@ -129,7 +132,6 @@ int main(int argc, char** argv){
     auto t1 = high_resolution_clock::now();
 
     rk_lce lce(text_path);
-    auto t2 = high_resolution_clock::now();
 
 	cout << "Size of the input: " << lce.size() << " Bytes" << endl;
 	cout << "Size of the structure: " << lce.bit_size()/8 << " Bytes" << endl;
@@ -138,6 +140,8 @@ int main(int argc, char** argv){
 	cout << "Testing LCE ... " << endl;
 
 	double sum_lce=0;
+
+    	auto t2 = high_resolution_clock::now();
 
 	for(int k=0;k<rep;++k){
 
