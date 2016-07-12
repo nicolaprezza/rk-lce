@@ -126,7 +126,7 @@ public:
 
 	uint64_t bit_size(){
 
-		return 8*sizeof(this) + ones.size()*sizeof(uint64_t);
+		return 8*sizeof(this) + ones.size()*sizeof(uint64_t)*8;
 
 	}
 
